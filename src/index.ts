@@ -1,4 +1,6 @@
-import {ApplicationConfig, InfiniteIntegerCalculatorBackendApplication} from './application';
+require('dotenv').config();
+
+import { ApplicationConfig, InfiniteIntegerCalculatorBackendApplication } from './application';
 
 export * from './application';
 
@@ -9,7 +11,7 @@ export async function main(options: ApplicationConfig = {}) {
 
   const url = app.restServer.url;
   console.log(`Server is running at ${url}`);
-  console.log(`Try ${url}/ping`);
+  console.log(`API explorer is running at ${url}/explorer`);
 
   return app;
 }

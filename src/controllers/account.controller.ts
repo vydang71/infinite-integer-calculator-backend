@@ -40,11 +40,7 @@ export class AccountController {
       'application/json': {
         schema: {
           type: 'object',
-          properties: {
-            token: {
-              type: 'string',
-            },
-          },
+          items: getModelSchemaRef(Account)
         },
       },
     },
