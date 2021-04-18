@@ -35,6 +35,7 @@ if (require.main === module) {
     },
     appConfig: {
       jwtSecret: process.env.JWT_SECRET,
+      loginDuration: process.env.LOGIN_DURATION
     }
   };
   main(config).catch(err => {

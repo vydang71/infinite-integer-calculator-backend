@@ -2,6 +2,7 @@ import { BindingKey } from '@loopback/context';
 
 interface AppConfig {
   jwtSecret: string;
+  loginDuration: string;
 }
 
 export namespace ConfigBindings {

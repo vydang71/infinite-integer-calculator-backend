@@ -1,6 +1,6 @@
 import { BootMixin } from '@loopback/boot';
 import { ApplicationConfig } from '@loopback/core';
-import { AuthenticationComponent } from '@loopback/authentication';
+import { AuthenticationComponent, registerAuthenticationStrategy } from '@loopback/authentication';
 import { AuthorizationDecision, AuthorizationOptions, AuthorizationTags, AuthorizationComponent } from '@loopback/authorization';
 import {
   JWTAuthenticationComponent,
@@ -18,6 +18,7 @@ import path from 'path';
 import { MySequence } from './sequence';
 import { DbDataSource } from './datasources';
 import { ConfigBindings } from './keys';
+import { JwtAuthenticationStrategy } from './authentications/jwt-strategy'
 
 export { ApplicationConfig };
 
@@ -53,6 +54,7 @@ export class InfiniteIntegerCalculatorBackendApplication extends BootMixin(
     // ------ ADD SNIPPET AT THE BOTTOM ---------
     // Mount authentication system
     this.component(AuthenticationComponent);
+    registerAuthenticationStrategy(this, JwtAuthenticationStrategy);
     // Mount jwt component
     this.component(JWTAuthenticationComponent);
     // Bind datasource

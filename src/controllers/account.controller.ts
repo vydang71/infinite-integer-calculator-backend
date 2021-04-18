@@ -22,7 +22,6 @@ import {
 } from '@loopback/rest';
 import { SecurityBindings, securityId, UserProfile } from '@loopback/security';
 import { authenticate } from '@loopback/authentication';
-import { UNAUTHENTICATED, AUTHENTICATED, authorize, EVERYONE } from '@loopback/authorization';
 import { genSalt, hash, compare } from 'bcryptjs'
 import { sign } from 'jsonwebtoken';
 import { Account, AccessTokenPayload } from '../models';
@@ -36,13 +35,19 @@ export class AccountController {
     public accountRepository: AccountRepository,
 
     @inject(SecurityBindings.USER, { optional: true })
-    private currentAuthUserProfile: UserProfile,
+    private currentUser: UserProfile,
 
     @config({
       fromBinding: ConfigBindings.APP_CONFIG,
       propertyPath: 'jwtSecret',
     })
     private jwtSecret: string,
+
+    @config({
+      fromBinding: ConfigBindings.APP_CONFIG,
+      propertyPath: 'loginDuration',
+    })
+    private loginDuration: string,
   ) { }
 
   async hashPassword(password: string): Promise<string> {
@@ -60,7 +65,9 @@ export class AccountController {
       name: account.name ?? '',
       email: account.email ?? '',
     };
-    return sign(payload, this.jwtSecret);
+    return sign(payload, this.jwtSecret, {
+      expiresIn: this.loginDuration
+    });
   }
 
   @post('/accounts/sign-up')
@@ -72,7 +79,6 @@ export class AccountController {
       },
     },
   })
-  @authorize({ allowedRoles: [UNAUTHENTICATED] })
   async signUp(
     @requestBody({
       content: {
@@ -146,13 +152,13 @@ export class AccountController {
     // Check that account exists
     const account = await this.accountRepository.findOne({ where: { email: values.email } });
     if (!account) {
-      throw new HttpErrors.BadRequest('incorrect_email')
+      throw new HttpErrors.BadRequest('invalid_email')
     }
 
     // Check password 
     const passwordMatched = await this.comparePassword(values.password, account.password);
     if (!passwordMatched) {
-      throw new HttpErrors.Unauthorized('incorrect_password');
+      throw new HttpErrors.Unauthorized('invalid_password');
     }
 
     //Generate token
@@ -170,13 +176,10 @@ export class AccountController {
     },
   })
   @authenticate('jwt')
-  @authorize({ allowedRoles: [AUTHENTICATED] })
   async findById(
-    @param.path.string('id') id: string,
-    @param.filter(Account, { exclude: 'where' }) filter?: FilterExcludingWhere<Account>
-  ): Promise<Account> {
-    const accountId = id === 'me' ? this.currentAuthUserProfile[securityId] : id
-    return this.accountRepository.findById(accountId, filter);
+    @param.path.string('id') id: string): Promise<Account> {
+    const accountId = id === 'me' ? this.currentUser[securityId] : id
+    return this.accountRepository.findById(accountId);
   }
 
   @patch('/accounts/{id}')
@@ -184,18 +187,21 @@ export class AccountController {
     description: 'Account PATCH success',
   })
   @authenticate('jwt')
-  @authorize({ allowedRoles: [AUTHENTICATED] })
   async updateById(
     @param.path.string('id') id: string,
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Account, { partial: true }),
+          schema: getModelSchemaRef(Account, {
+            exclude: ['id'],
+            title: 'Account.Update',
+          }),
         },
       },
     })
     account: Account,
   ): Promise<void> {
-    await this.accountRepository.updateById(id, account);
+    const accountId = id === 'me' ? this.currentUser[securityId] : id
+    await this.accountRepository.updateById(accountId, account);
   }
 }
