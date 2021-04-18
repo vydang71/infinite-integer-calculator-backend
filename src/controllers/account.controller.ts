@@ -1,3 +1,4 @@
+import { inject, service } from '@loopback/core';
 import {
   Count,
   CountSchema,
@@ -18,6 +19,9 @@ import {
   response,
   HttpErrors
 } from '@loopback/rest';
+import { SecurityBindings, securityId, UserProfile } from '@loopback/security';
+import { authenticate } from '@loopback/authentication';
+import { UNAUTHENTICATED, AUTHENTICATED, authorize, EVERYONE } from '@loopback/authorization';
 import { genSalt, hash } from 'bcryptjs'
 import { Account } from '../models';
 import { AccountRepository } from '../repositories';
@@ -26,6 +30,9 @@ export class AccountController {
   constructor(
     @repository(AccountRepository)
     public accountRepository: AccountRepository,
+
+    @inject(SecurityBindings.USER, { optional: true })
+    private currentAuthUserProfile: UserProfile,
   ) { }
 
   async hashPassword(password: string): Promise<string> {
@@ -38,10 +45,7 @@ export class AccountController {
     description: 'Receive tokens after a successful registration',
     content: {
       'application/json': {
-        schema: {
-          type: 'object',
-          items: getModelSchemaRef(Account)
-        },
+        schema: getModelSchemaRef(Account)
       },
     },
   })
@@ -85,11 +89,14 @@ export class AccountController {
       },
     },
   })
+  @authenticate('jwt')
+  @authorize({ allowedRoles: [AUTHENTICATED] })
   async findById(
     @param.path.string('id') id: string,
     @param.filter(Account, { exclude: 'where' }) filter?: FilterExcludingWhere<Account>
   ): Promise<Account> {
-    return this.accountRepository.findById(id, filter);
+    const accountId = id === 'me' ? this.currentAuthUserProfile[securityId] : id
+    return this.accountRepository.findById(accountId, filter);
   }
 
   @patch('/accounts/{id}')

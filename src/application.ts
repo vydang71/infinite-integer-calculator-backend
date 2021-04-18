@@ -1,16 +1,24 @@
-import {BootMixin} from '@loopback/boot';
-import {ApplicationConfig} from '@loopback/core';
+import { BootMixin } from '@loopback/boot';
+import { ApplicationConfig } from '@loopback/core';
+import { AuthenticationComponent } from '@loopback/authentication';
+import { AuthorizationDecision, AuthorizationOptions, AuthorizationTags, AuthorizationComponent } from '@loopback/authorization';
+import {
+  JWTAuthenticationComponent,
+  MyUserService,
+  UserServiceBindings,
+} from '@loopback/authentication-jwt';
 import {
   RestExplorerBindings,
   RestExplorerComponent,
 } from '@loopback/rest-explorer';
-import {RepositoryMixin} from '@loopback/repository';
-import {RestApplication} from '@loopback/rest';
-import {ServiceMixin} from '@loopback/service-proxy';
+import { RepositoryMixin } from '@loopback/repository';
+import { RestApplication } from '@loopback/rest';
+import { ServiceMixin } from '@loopback/service-proxy';
 import path from 'path';
-import {MySequence} from './sequence';
+import { MySequence } from './sequence';
+import { DbDataSource } from './datasources';
 
-export {ApplicationConfig};
+export { ApplicationConfig };
 
 export class InfiniteIntegerCalculatorBackendApplication extends BootMixin(
   ServiceMixin(RepositoryMixin(RestApplication)),
@@ -40,5 +48,36 @@ export class InfiniteIntegerCalculatorBackendApplication extends BootMixin(
         nested: true,
       },
     };
+
+    // ------ ADD SNIPPET AT THE BOTTOM ---------
+    // Mount authentication system
+    this.component(AuthenticationComponent);
+    // Mount jwt component
+    this.component(JWTAuthenticationComponent);
+    // Bind datasource
+    this.dataSource(DbDataSource, UserServiceBindings.DATASOURCE_NAME);
+
+    // ---------- MAKE SURE THE FOLLOWING PARTS ARE CORRECT
+    // bind set authorization options
+    const authOptions: AuthorizationOptions = {
+      precedence: AuthorizationDecision.DENY,
+      defaultDecision: AuthorizationDecision.DENY,
+    };
+
+    // mount authorization component
+    const binding = this.component(AuthorizationComponent);
+    // configure authorization component
+    this.configure(binding.key).to(authOptions);
+
+    // bind the authorizer provider
+    // this
+    //   .bind('authorizationProviders.my-authorizer-provider')
+    //   .toProvider(MyAuthorizationProvider)
+    //   .tag(AuthorizationTags.AUTHORIZER);
+
+    // ------------- END OF SNIPPET -------------
+
+    //new
+    this.bind(UserServiceBindings.USER_SERVICE).toClass(MyUserService);
   }
 }
