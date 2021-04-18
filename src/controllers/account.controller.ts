@@ -1,4 +1,5 @@
-import { inject, service } from '@loopback/core';
+import { inject } from '@loopback/core';
+import { config } from '@loopback/context';
 import {
   Count,
   CountSchema,
@@ -22,9 +23,12 @@ import {
 import { SecurityBindings, securityId, UserProfile } from '@loopback/security';
 import { authenticate } from '@loopback/authentication';
 import { UNAUTHENTICATED, AUTHENTICATED, authorize, EVERYONE } from '@loopback/authorization';
-import { genSalt, hash } from 'bcryptjs'
-import { Account } from '../models';
+import { genSalt, hash, compare } from 'bcryptjs'
+import { sign } from 'jsonwebtoken';
+import { Account, AccessTokenPayload } from '../models';
 import { AccountRepository } from '../repositories';
+import { ConfigBindings } from '../keys';
+
 
 export class AccountController {
   constructor(
@@ -33,6 +37,12 @@ export class AccountController {
 
     @inject(SecurityBindings.USER, { optional: true })
     private currentAuthUserProfile: UserProfile,
+
+    @config({
+      fromBinding: ConfigBindings.APP_CONFIG,
+      propertyPath: 'jwtSecret',
+    })
+    private jwtSecret: string,
   ) { }
 
   async hashPassword(password: string): Promise<string> {
@@ -40,15 +50,29 @@ export class AccountController {
     return hash(password, salt);
   }
 
+  async comparePassword(str: string, hashedStr: string): Promise<boolean> {
+    return compare(str, hashedStr);
+  }
+
+  public async generateToken(account: Account): Promise<string> {
+    const payload: AccessTokenPayload = {
+      id: account.id ?? '',
+      name: account.name ?? '',
+      email: account.email ?? '',
+    };
+    return sign(payload, this.jwtSecret);
+  }
+
   @post('/accounts/sign-up')
   @response(200, {
-    description: 'Receive tokens after a successful registration',
+    description: 'Register as an account',
     content: {
       'application/json': {
         schema: getModelSchemaRef(Account)
       },
     },
   })
+  @authorize({ allowedRoles: [UNAUTHENTICATED] })
   async signUp(
     @requestBody({
       content: {
@@ -80,6 +104,62 @@ export class AccountController {
     return this.accountRepository.create(account);
   }
 
+  @post('/accounts/login')
+  @response(200, {
+    description: 'Receive tokens after a successful login',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            token: {
+              type: 'string',
+            }
+          }
+        }
+      },
+    },
+  })
+  async login(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              email: {
+                type: 'string',
+              },
+              password: {
+                type: 'string',
+              }
+            }
+          }
+        },
+      },
+    })
+    values: {
+      email: string,
+      password: string
+    },
+  ): Promise<{ token: string }> {
+    // Check that account exists
+    const account = await this.accountRepository.findOne({ where: { email: values.email } });
+    if (!account) {
+      throw new HttpErrors.BadRequest('incorrect_email')
+    }
+
+    // Check password 
+    const passwordMatched = await this.comparePassword(values.password, account.password);
+    if (!passwordMatched) {
+      throw new HttpErrors.Unauthorized('incorrect_password');
+    }
+
+    //Generate token
+    const token = await this.generateToken(account)
+    return { token }
+  }
+
   @get('/accounts/{id}')
   @response(200, {
     description: 'Account model instance',
@@ -103,6 +183,8 @@ export class AccountController {
   @response(204, {
     description: 'Account PATCH success',
   })
+  @authenticate('jwt')
+  @authorize({ allowedRoles: [AUTHENTICATED] })
   async updateById(
     @param.path.string('id') id: string,
     @requestBody({

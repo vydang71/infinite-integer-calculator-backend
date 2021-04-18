@@ -17,6 +17,7 @@ import { ServiceMixin } from '@loopback/service-proxy';
 import path from 'path';
 import { MySequence } from './sequence';
 import { DbDataSource } from './datasources';
+import { ConfigBindings } from './keys';
 
 export { ApplicationConfig };
 
@@ -79,5 +80,6 @@ export class InfiniteIntegerCalculatorBackendApplication extends BootMixin(
 
     //new
     this.bind(UserServiceBindings.USER_SERVICE).toClass(MyUserService);
+    this.configure(ConfigBindings.APP_CONFIG).to(this.options.appConfig);
   }
 }

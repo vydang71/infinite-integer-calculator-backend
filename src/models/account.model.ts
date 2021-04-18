@@ -1,5 +1,11 @@
 import { Entity, model, property } from '@loopback/repository';
 
+export type AccessTokenPayload = {
+  id: string;
+  name: string;
+  email: string;
+};
+
 @model({ settings: { strict: false } })
 export class Account extends Entity {
   @property({

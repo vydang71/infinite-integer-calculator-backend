@@ -33,6 +33,9 @@ if (require.main === module) {
         setServersFromRequest: true,
       },
     },
+    appConfig: {
+      jwtSecret: process.env.JWT_SECRET,
+    }
   };
   main(config).catch(err => {
     console.error('Cannot start the application.', err);
