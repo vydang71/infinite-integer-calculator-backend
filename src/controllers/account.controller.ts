@@ -16,7 +16,9 @@ import {
   del,
   requestBody,
   response,
+  HttpErrors
 } from '@loopback/rest';
+import { genSalt, hash } from 'bcryptjs'
 import { Account } from '../models';
 import { AccountRepository } from '../repositories';
 
@@ -25,6 +27,58 @@ export class AccountController {
     @repository(AccountRepository)
     public accountRepository: AccountRepository,
   ) { }
+
+  async hashPassword(password: string): Promise<string> {
+    const salt = await genSalt();
+    return hash(password, salt);
+  }
+
+  @post('/accounts/sign-up')
+  @response(200, {
+    description: 'Receive tokens after a successful registration',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            token: {
+              type: 'string',
+            },
+          },
+        },
+      },
+    },
+  })
+  async signUp(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(Account, {
+            exclude: ['id'],
+            title: 'Account.Create',
+          }),
+        },
+      },
+    })
+    values: Omit<Account, 'id'>,
+  ): Promise<Account> {
+    // Check that email exists
+    const emailExisted = await this.accountRepository.findOne({ where: { email: values.email } });
+    if (emailExisted) {
+      throw new HttpErrors.BadRequest('email_already_exists')
+    }
+
+    // Hash password
+    const hashedPassword = await this.hashPassword(values.password);
+
+    const account = new Account({
+      name: values.name,
+      email: values.email,
+      password: hashedPassword
+    });
+
+    return this.accountRepository.create(account);
+  }
 
   @get('/accounts/{id}')
   @response(200, {
