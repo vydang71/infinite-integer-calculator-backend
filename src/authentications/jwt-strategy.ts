@@ -1,14 +1,9 @@
-import { config } from '@loopback/context';
 import { Request, HttpErrors } from '@loopback/rest';
 import { AuthenticationStrategy } from '@loopback/authentication';
-import { UserProfile, securityId } from '@loopback/security';
+import { UserProfile } from '@loopback/security';
 import cookie from 'cookie';
-import { verify } from 'jsonwebtoken';
 import { repository } from '@loopback/repository';
-import { Account, AccessTokenPayload } from '../models'
 import { AccountRepository } from '../repositories';
-import { ConfigBindings } from '../keys'
-
 
 export class JwtAuthenticationStrategy implements AuthenticationStrategy {
   name: string = 'jwt';
@@ -16,12 +11,6 @@ export class JwtAuthenticationStrategy implements AuthenticationStrategy {
   constructor(
     @repository(AccountRepository)
     public accountRepository: AccountRepository,
-
-    @config({
-      fromBinding: ConfigBindings.APP_CONFIG,
-      propertyPath: 'jwtSecret',
-    })
-    private jwtSecret: string,
   ) { }
 
   private extractJwtFromHeader(request: Request): string | null {
@@ -54,31 +43,12 @@ export class JwtAuthenticationStrategy implements AuthenticationStrategy {
     );
   }
 
-  private async verifyToken(token: string): Promise<UserProfile> {
-    let userProfile: UserProfile = { [securityId]: '', name: '', email: '' };
-
-    let account: Account;
-    try {
-      const decodedPayload = verify(token, this.jwtSecret) as AccessTokenPayload;
-      account = await this.accountRepository.findById(decodedPayload.id);
-      userProfile = Object.assign(userProfile, {
-        [securityId]: account.id,
-        name: account.name,
-        email: account.email,
-      });
-    } catch (error) {
-      throw new HttpErrors.Unauthorized('invalid_token');
-    }
-
-    return userProfile;
-  }
-
   async authenticate(request: Request): Promise<UserProfile | undefined> {
     const token = this.extractJwtToken(request);
     if (!token) {
       throw new HttpErrors.Unauthorized();
     }
 
-    return this.verifyToken(token);
+    return this.accountRepository.verifyToken(token);
   }
 }

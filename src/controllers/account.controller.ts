@@ -1,5 +1,4 @@
 import { inject } from '@loopback/core';
-import { config } from '@loopback/context';
 import {
   Count,
   CountSchema,
@@ -22,12 +21,8 @@ import {
 } from '@loopback/rest';
 import { SecurityBindings, securityId, UserProfile } from '@loopback/security';
 import { authenticate } from '@loopback/authentication';
-import { genSalt, hash, compare } from 'bcryptjs'
-import { sign } from 'jsonwebtoken';
-import { Account, AccessTokenPayload } from '../models';
+import { Account } from '../models';
 import { AccountRepository } from '../repositories';
-import { ConfigBindings } from '../keys';
-
 
 export class AccountController {
   constructor(
@@ -36,39 +31,7 @@ export class AccountController {
 
     @inject(SecurityBindings.USER, { optional: true })
     private currentUser: UserProfile,
-
-    @config({
-      fromBinding: ConfigBindings.APP_CONFIG,
-      propertyPath: 'jwtSecret',
-    })
-    private jwtSecret: string,
-
-    @config({
-      fromBinding: ConfigBindings.APP_CONFIG,
-      propertyPath: 'loginDuration',
-    })
-    private loginDuration: string,
   ) { }
-
-  async hashPassword(password: string): Promise<string> {
-    const salt = await genSalt();
-    return hash(password, salt);
-  }
-
-  async comparePassword(str: string, hashedStr: string): Promise<boolean> {
-    return compare(str, hashedStr);
-  }
-
-  public async generateToken(account: Account): Promise<string> {
-    const payload: AccessTokenPayload = {
-      id: account.id ?? '',
-      name: account.name ?? '',
-      email: account.email ?? '',
-    };
-    return sign(payload, this.jwtSecret, {
-      expiresIn: this.loginDuration
-    });
-  }
 
   @post('/accounts/sign-up')
   @response(200, {
@@ -93,13 +56,13 @@ export class AccountController {
     values: Omit<Account, 'id'>,
   ): Promise<Account> {
     // Check that email exists
-    const emailExisted = await this.accountRepository.findOne({ where: { email: values.email } });
+    const emailExisted = await this.accountRepository.findByEmail(values.email);
     if (emailExisted) {
       throw new HttpErrors.BadRequest('email_already_exists')
     }
 
     // Hash password
-    const hashedPassword = await this.hashPassword(values.password);
+    const hashedPassword = await this.accountRepository.hashPassword(values.password);
 
     const account = new Account({
       name: values.name,
@@ -150,19 +113,19 @@ export class AccountController {
     },
   ): Promise<{ token: string }> {
     // Check that account exists
-    const account = await this.accountRepository.findOne({ where: { email: values.email } });
+    const account = await this.accountRepository.findByEmail(values.email);
     if (!account) {
       throw new HttpErrors.BadRequest('invalid_email')
     }
 
     // Check password 
-    const passwordMatched = await this.comparePassword(values.password, account.password);
+    const passwordMatched = await this.accountRepository.comparePassword(values.password, account.password);
     if (!passwordMatched) {
       throw new HttpErrors.Unauthorized('invalid_password');
     }
 
     //Generate token
-    const token = await this.generateToken(account)
+    const token = await this.accountRepository.generateToken(account)
     return { token }
   }
 
