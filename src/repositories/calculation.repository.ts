@@ -18,10 +18,6 @@ export class CalculationRepository extends DefaultCrudRepository<
     super(Calculation, dataSource);
   }
 
-  private add(num1: number, num2: number) {
-    return num1 + num2
-  }
-
   private bigNumber(value: number): string {
     let result: string = value.toString()
     let e = parseInt(value.toString().split('+')[1])
@@ -31,42 +27,18 @@ export class CalculationRepository extends DefaultCrudRepository<
       result = num.toString();
       result = result + (new Array(e + 1)).join('0')
     }
-
-    console.log('result', result);
-
-
     return result;
   }
 
   public calculate(question: string): string {
-    // Remove unnecessary characters
-    // question = question.replace(/[^0-9−+÷×]/g, '')
-
-    // const precedenceOperations = [
-    //   [Operation.MULTIPLY, Operation.DIVIDE],
-    //   [Operation.ADD, Operation.DIVIDE]
-    // ]
-
-    // precedenceOperations.forEach(item => {
-    //   var re = new RegExp('(\\d+\\.?\\d*)([\\' + item.join('\\') + '])(\\d+\\.?\\d*)');
-    //   console.log('********', { re })
-    // })
-
     const array = question.split(' ');
 
     const handleCalculate: HandleCalculate = {
-      [Operation.ADD]: this.add,
+      [Operation.ADD]: (num1: number, num2: number) => num1 + num2,
       [Operation.SUBTRACT]: (num1: number, num2: number) => num1 - num2,
       [Operation.MULTIPLY]: (num1: number, num2: number) => num1 * num2,
       [Operation.DIVIDE]: (num1: number, num2: number) => num1 / num2,
     };
-
-    // const result = handleCalculate['+'](parseInt(array[0]), parseInt(array[2]))
-
-    // const test: number = 10000000000001000000000000100000000000010000000000001000000000000100000000000010000000000001000000000000
-    // console.log('%%%: 00: ', { test });
-
-
 
     let result: number = 0
     let currentCalculate: Operation = Operation.ADD
@@ -79,7 +51,6 @@ export class CalculationRepository extends DefaultCrudRepository<
       }
     })
 
-    this.bigNumber(result)
-    return result.toString()
+    return this.bigNumber(result)
   }
 }
