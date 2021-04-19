@@ -1,6 +1,13 @@
 import { Entity, model, property, belongsTo } from '@loopback/repository';
 import { Account } from './account.model';
 
+export enum Operation {
+  ADD = '+',
+  SUBTRACT = '-',
+  MULTIPLY = '×',
+  DIVIDE = '÷'
+}
+
 @model({ settings: { strict: false } })
 export class Calculation extends Entity {
   @property({
