@@ -44,7 +44,7 @@ export class CalculationController {
       },
     })
     calculation: Omit<Calculation, 'id'>,
-  ): Promise<{ answer: number }> {
+  ): Promise<{ answer: string }> {
     return { answer: this.calculationRepository.calculate(calculation.question) }
   }
 
