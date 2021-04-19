@@ -1,16 +1,11 @@
-import {inject, lifeCycleObserver, LifeCycleObserver} from '@loopback/core';
-import {juggler} from '@loopback/repository';
+import { inject, lifeCycleObserver, LifeCycleObserver } from '@loopback/core';
+import { juggler } from '@loopback/repository';
+import { config } from '@loopback/context';
+import { ConfigBindings } from '../keys';
 
-const config = {
+const dbConfig = {
   name: 'db',
   connector: 'mongodb',
-  url: '',
-  host: 'localhost',
-  port: 27017,
-  user: '',
-  password: '',
-  database: 'calculator-dev',
-  useNewUrlParser: true
 };
 
 // Observe application's life cycle to disconnect the datasource when
@@ -21,12 +16,19 @@ const config = {
 export class DbDataSource extends juggler.DataSource
   implements LifeCycleObserver {
   static dataSourceName = 'db';
-  static readonly defaultConfig = config;
+  static readonly defaultConfig = dbConfig;
 
   constructor(
-    @inject('datasources.config.db', {optional: true})
-    dsConfig: object = config,
+    @inject('datasources.config.db', { optional: true })
+    dsConfig: object = dbConfig,
+
+    @config({
+      fromBinding: ConfigBindings.INFRA_CONFIG,
+      propertyPath: 'dbUrl',
+    })
+    private dbUrl: string,
+
   ) {
-    super(dsConfig);
+    super({ ...dbConfig, url: dbUrl });
   }
 }

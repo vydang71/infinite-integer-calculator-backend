@@ -83,5 +83,6 @@ export class InfiniteIntegerCalculatorBackendApplication extends BootMixin(
     //new
     this.bind(UserServiceBindings.USER_SERVICE).toClass(MyUserService);
     this.configure(ConfigBindings.APP_CONFIG).to(this.options.appConfig);
+    this.configure(ConfigBindings.INFRA_CONFIG).to(this.options.infraConfig);
   }
 }

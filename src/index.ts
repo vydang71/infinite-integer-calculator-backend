@@ -36,6 +36,9 @@ if (require.main === module) {
     appConfig: {
       jwtSecret: process.env.JWT_SECRET,
       loginDuration: process.env.LOGIN_DURATION
+    },
+    infraConfig: {
+      dbUrl: process.env.DB_URL,
     }
   };
   main(config).catch(err => {
